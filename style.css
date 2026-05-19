@@ -1,0 +1,714 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Creepster&display=swap');
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Share Tech Mono', monospace;
+    color: #00ff00;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== MATRIX CANVAS ===== */
+#matrix-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: 0.12;
+}
+
+/* ===== SCANLINE OVERLAY ===== */
+#overlay-scanline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 255, 0, 0.06);
+    z-index: 9998;
+    pointer-events: none;
+    animation: anim-scanline 4s linear infinite;
+}
+
+/* ===== RED FLASH OVERLAY ===== */
+#overlay-redflash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 0, 0, 0.35);
+    z-index: 9997;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+}
+
+/* ===== STAGE SYSTEM ===== */
+.stage {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+}
+
+.stage.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.stage-inner {
+    width: 92%;
+    max-width: 520px;
+    padding: 28px;
+    text-align: center;
+}
+
+.stage-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+/* ===== GEAR ICON (CSS ONLY) ===== */
+.icon-gear-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.icon-gear {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #00ff00;
+    border-radius: 50%;
+    position: relative;
+    animation: anim-spin 6s linear infinite;
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.4);
+}
+
+.icon-gear::before,
+.icon-gear::after {
+    content: '';
+    position: absolute;
+    background: #00ff00;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.4);
+}
+
+.icon-gear::before {
+    width: 4px;
+    height: 60px;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.icon-gear::after {
+    width: 60px;
+    height: 4px;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* ===== SKULL ICON (CSS ONLY) ===== */
+.skull-css {
+    width: 80px;
+    height: 90px;
+    border: 4px solid #ff0000;
+    border-radius: 50% 50% 40% 40%;
+    position: relative;
+    margin-bottom: 10px;
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.5), inset 0 0 15px rgba(255, 0, 0, 0.1);
+    animation: anim-pulse-shadow 2s infinite;
+}
+
+.skull-css::before {
+    content: '';
+    position: absolute;
+    top: 22px;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ff0000;
+    box-shadow: 32px 0 0 0 #ff0000, 0 0 8px #ff0000, 32px 0 8px #ff0000;
+}
+
+.skull-css::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 10px;
+    border-bottom: 3px solid #ff0000;
+    border-radius: 0 0 50% 50%;
+}
+
+/* ===== TYPOGRAPHY ===== */
+.hdr-terminal {
+    font-family: 'Share Tech Mono', monospace;
+    color: #00ff00;
+    font-size: 1.15rem;
+    margin-bottom: 14px;
+    text-shadow: 0 0 10px #00ff00;
+    letter-spacing: 1px;
+}
+
+.hdr-danger {
+    color: #ff0000;
+    text-shadow: 0 0 15px #ff0000, 0 0 30px rgba(255, 0, 0, 0.3);
+}
+
+.text-dim {
+    color: #777;
+    font-size: 0.82rem;
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+/* ===== PERMISSION LIST ===== */
+.perm-list {
+    text-align: left;
+    margin: 18px 0;
+}
+
+.perm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid #1a1a1a;
+    margin-bottom: 6px;
+    border-radius: 5px;
+    font-size: 0.82rem;
+    background: rgba(0, 255, 0, 0.02);
+    transition: border-color 0.3s, background 0.3s;
+}
+
+.perm-icon {
+    color: #00ff00;
+    font-weight: bold;
+    font-size: 0.75rem;
+    min-width: 40px;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+.perm-label {
+    flex: 1;
+    color: #aaa;
+}
+
+.perm-badge {
+    font-size: 0.7rem;
+    padding: 3px 10px;
+    border: 1px solid #333;
+    border-radius: 3px;
+    color: #555;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+}
+
+.perm-badge.granted {
+    color: #00ff00;
+    border-color: #00ff00;
+    text-shadow: 0 0 6px #00ff00;
+    background: rgba(0, 255, 0, 0.05);
+}
+
+.perm-badge.bypassed {
+    color: #ff6600;
+    border-color: #ff6600;
+    text-shadow: 0 0 6px #ff6600;
+}
+
+/* ===== BUTTONS ===== */
+.btn-horror {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #00ff00;
+    background: transparent;
+    color: #00ff00;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-horror::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-horror:hover::after {
+    left: 100%;
+}
+
+.btn-horror:hover {
+    background: rgba(0, 255, 0, 0.15);
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.3), inset 0 0 30px rgba(0, 255, 0, 0.05);
+}
+
+.btn-horror:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-reward {
+    padding: 18px 44px;
+    border: 2px solid #00ff00;
+    background: rgba(0, 255, 0, 0.08);
+    color: #00ff00;
+    font-family: 'Creepster', cursive;
+    font-size: 1.4rem;
+    cursor: pointer;
+    border-radius: 8px;
+    letter-spacing: 2px;
+    animation: anim-pulse-glow 2s infinite;
+    transition: transform 0.2s;
+}
+
+.btn-reward:hover {
+    transform: scale(1.06);
+}
+
+/* ===== TERMINAL BOX ===== */
+.terminal-box {
+    text-align: left;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+    padding: 16px;
+    max-height: 48vh;
+    overflow-y: auto;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    margin-bottom: 16px;
+}
+
+.terminal-box::-webkit-scrollbar {
+    width: 3px;
+}
+
+.terminal-box::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 2px;
+}
+
+.scan-line {
+    color: #00ff00;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 1px 0;
+}
+
+.scan-line.line-danger {
+    color: #ff0000;
+    font-weight: bold;
+    text-shadow: 0 0 8px #ff0000;
+}
+
+/* ===== PROGRESS BAR ===== */
+.bar-outer {
+    width: 100%;
+    height: 6px;
+    background: #111;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid #1a1a1a;
+}
+
+.bar-inner {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #004400, #00ff00);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+.text-pct {
+    color: #00ff00;
+    font-size: 0.78rem;
+    margin-top: 8px;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+/* ===== COUNTDOWN ===== */
+.text-breach {
+    font-family: 'Share Tech Mono', monospace;
+    color: #ff0000;
+    font-size: 1rem;
+    text-shadow: 0 0 12px #ff0000;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+}
+
+.cd-big {
+    font-family: 'Creepster', cursive;
+    font-size: 9rem;
+    color: #ff0000;
+    text-shadow: 0 0 40px #ff0000, 0 0 80px rgba(255, 0, 0, 0.4), 0 0 120px rgba(255, 0, 0, 0.2);
+    line-height: 1;
+    transition: transform 0.15s ease;
+}
+
+.cd-big.tick {
+    transform: scale(1.18);
+}
+
+.svg-pulse {
+    width: 80%;
+    max-width: 340px;
+    margin-top: 12px;
+}
+
+.path-pulse {
+    fill: none;
+    stroke: #ff0000;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 800;
+    filter: drop-shadow(0 0 4px #ff0000);
+    animation: anim-heartbeat 1.5s ease-in-out infinite;
+}
+
+#stage-3.urgent .cd-big {
+    animation: anim-blink 0.3s infinite, anim-pulse-glow 0.8s infinite;
+}
+
+#stage-3.urgent {
+    background: rgba(255, 0, 0, 0.04);
+}
+
+/* ===== SCARE STAGE ===== */
+.text-glitch {
+    font-family: 'Creepster', cursive;
+    font-size: 2.8rem;
+    color: #ff0000;
+    position: relative;
+    text-shadow: 0 0 20px #ff0000;
+    animation: anim-glitch 0.3s infinite;
+}
+
+.text-glitch::before,
+.text-glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.text-glitch::before {
+    color: #00ffff;
+    z-index: -1;
+    animation: anim-glitch-shift1 0.4s infinite;
+    clip-path: inset(40% 0 20% 0);
+}
+
+.text-glitch::after {
+    color: #ff00ff;
+    z-index: -2;
+    animation: anim-glitch-shift2 0.4s infinite;
+    clip-path: inset(60% 0 5% 0);
+}
+
+.scare-lines {
+    text-align: left;
+    margin: 24px auto;
+    max-width: 300px;
+}
+
+.scare-line {
+    color: #ff0000;
+    font-size: 0.88rem;
+    margin: 10px 0;
+    opacity: 0;
+    transform: translateX(-25px);
+    transition: all 0.5s ease;
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+}
+
+.scare-line.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.line-blink {
+    animation: anim-blink 0.5s infinite;
+}
+
+.scare-timer-num {
+    font-family: 'Creepster', cursive;
+    font-size: 4.5rem;
+    color: #ffffff;
+    text-shadow: 0 0 25px #ff0000, 0 0 50px rgba(255, 0, 0, 0.4);
+    margin-top: 10px;
+}
+
+body.scare-mode {
+    animation: anim-shake 0.15s infinite;
+}
+
+body.scare-mode #overlay-redflash {
+    opacity: 1;
+    animation: anim-flash-red 0.3s infinite;
+}
+
+/* ===== VICTORY ===== */
+.text-victory {
+    font-family: 'Creepster', cursive;
+    font-size: 2.8rem;
+    color: #00ff00;
+    text-shadow: 0 0 25px #00ff00, 0 0 50px rgba(0, 255, 0, 0.3);
+    letter-spacing: 3px;
+}
+
+/* ===== DOWNLOAD STAGE ===== */
+.dl-container {
+    max-height: 55vh;
+    overflow-y: auto;
+}
+
+.dl-item {
+    background: rgba(0, 20, 0, 0.5);
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.dl-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    margin-bottom: 7px;
+}
+
+.dl-name {
+    color: #00ff00;
+}
+
+.dl-size {
+    color: #444;
+}
+
+.dl-bar-wrap {
+    height: 4px;
+    background: #111;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.dl-bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #003300, #00ff00);
+    border-radius: 2px;
+    transition: width 0.18s ease;
+}
+
+.dl-status {
+    font-size: 0.68rem;
+    color: #444;
+    margin-top: 5px;
+    display: block;
+}
+
+.dl-status.done {
+    color: #00ff00;
+    text-shadow: 0 0 4px #00ff00;
+}
+
+.text-warn-flash {
+    color: #ff0000;
+    font-size: 0.95rem;
+    margin-top: 18px;
+    text-shadow: 0 0 12px #ff0000;
+    min-height: 1.5em;
+    letter-spacing: 1px;
+}
+
+/* ===== RANSOM STAGE ===== */
+.text-ransom-hdr {
+    font-family: 'Creepster', cursive;
+    font-size: 1.9rem;
+    color: #ff0000;
+    text-shadow: 0 0 20px #ff0000, 0 0 40px rgba(255, 0, 0, 0.3);
+    letter-spacing: 2px;
+    line-height: 1.3;
+}
+
+.text-ransom-body {
+    color: #999;
+    font-size: 0.8rem;
+    max-width: 380px;
+    line-height: 1.6;
+}
+
+.text-ransom-body strong {
+    color: #ff0000;
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.4);
+}
+
+.card-box {
+    border: 2px solid #ff0000;
+    padding: 18px 34px;
+    border-radius: 8px;
+    background: rgba(255, 0, 0, 0.04);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.15), inset 0 0 20px rgba(255, 0, 0, 0.03);
+    margin: 12px 0;
+}
+
+.card-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.4rem;
+    color: #ffffff;
+    letter-spacing: 5px;
+    text-shadow: 0 0 10px #ff0000;
+}
+
+.text-ransom-sub {
+    color: #666;
+    font-size: 0.78rem;
+}
+
+.ransom-clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 2.5rem;
+    color: #ff0000;
+    text-shadow: 0 0 30px #ff0000, 0 0 60px rgba(255, 0, 0, 0.3);
+    letter-spacing: 3px;
+}
+
+.text-ransom-alert {
+    color: #ff0000;
+    font-size: 0.8rem;
+    animation: anim-blink 1s infinite;
+    letter-spacing: 1px;
+    margin-top: 8px;
+}
+
+body.ransom-mode #stage-7 {
+    z-index: 99999;
+}
+
+/* ===== KEYFRAME ANIMATIONS ===== */
+
+@keyframes anim-scanline {
+    0% { top: -10%; }
+    100% { top: 110%; }
+}
+
+@keyframes anim-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes anim-pulse-shadow {
+    0%, 100% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.5), inset 0 0 15px rgba(255, 0, 0, 0.1); }
+    50% { box-shadow: 0 0 50px rgba(255, 0, 0, 0.8), inset 0 0 25px rgba(255, 0, 0, 0.2); }
+}
+
+@keyframes anim-pulse-glow {
+    0%, 100% { filter: brightness(1); text-shadow: 0 0 10px currentColor; }
+    50% { filter: brightness(1.5); text-shadow: 0 0 40px currentColor, 0 0 80px currentColor; }
+}
+
+@keyframes anim-heartbeat {
+    0% { stroke-dashoffset: 800; }
+    50% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -800; }
+}
+
+@keyframes anim-glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-3px, 3px); }
+    40% { transform: translate(-3px, -3px); }
+    60% { transform: translate(3px, 3px); }
+    80% { transform: translate(3px, -3px); }
+    100% { transform: translate(0); }
+}
+
+@keyframes anim-glitch-shift1 {
+    0% { transform: translate(-2px, 0); }
+    100% { transform: translate(2px, 0); }
+}
+
+@keyframes anim-glitch-shift2 {
+    0% { transform: translate(2px, 0); }
+    100% { transform: translate(-2px, 0); }
+}
+
+@keyframes anim-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+}
+
+@keyframes anim-flash-red {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.45; }
+}
+
+@keyframes anim-shake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-6px, -4px); }
+    20% { transform: translate(6px, 4px); }
+    30% { transform: translate(-4px, 6px); }
+    40% { transform: translate(4px, -6px); }
+    50% { transform: translate(-6px, 4px); }
+    60% { transform: translate(6px, -4px); }
+    70% { transform: translate(-4px, -6px); }
+    80% { transform: translate(4px, 6px); }
+    90% { transform: translate(-6px, -4px); }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+    .cd-big { font-size: 6rem; }
+    .text-glitch { font-size: 2rem; }
+    .text-ransom-hdr { font-size: 1.4rem; }
+    .card-num { font-size: 1.05rem; letter-spacing: 3px; }
+    .terminal-box { font-size: 0.62rem; max-height: 38vh; }
+    .text-victory { font-size: 2rem; }
+    .scare-timer-num { font-size: 3.5rem; }
+    .ransom-clock { font-size: 2rem; }
+    .stage-inner { padding: 18px; }
+}

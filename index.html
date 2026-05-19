@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>System Update Required</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Creepster&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <canvas id="matrix-canvas"></canvas>
+    <div id="overlay-scanline"></div>
+    <div id="overlay-redflash"></div>
+
+    <audio id="audio-scare" preload="auto">
+        <source src="yamete-kudasai.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- STAGE 1 : PERMISSION REQUEST -->
+    <div id="stage-1" class="stage active">
+        <div class="stage-inner">
+            <div class="icon-gear-wrap"><div class="icon-gear"></div></div>
+            <h2 class="hdr-terminal">SYSTEM DIAGNOSTICS v6.6.6</h2>
+            <p class="text-dim">This application requires full system access to perform a deep security analysis on your device. Grant all permissions to continue.</p>
+            <div class="perm-list">
+                <div class="perm-row" id="perm-camera">
+                    <span class="perm-icon">[CAM]</span>
+                    <span class="perm-label">Camera Access</span>
+                    <span class="perm-badge" data-state="wait">PENDING</span>
+                </div>
+                <div class="perm-row" id="perm-location">
+                    <span class="perm-icon">[LOC]</span>
+                    <span class="perm-label">Location Services</span>
+                    <span class="perm-badge" data-state="wait">PENDING</span>
+                </div>
+                <div class="perm-row" id="perm-files">
+                    <span class="perm-icon">[DIR]</span>
+                    <span class="perm-label">File System Access</span>
+                    <span class="perm-badge" data-state="wait">PENDING</span>
+                </div>
+                <div class="perm-row" id="perm-notify">
+                    <span class="perm-icon">[NTF]</span>
+                    <span class="perm-label">Push Notifications</span>
+                    <span class="perm-badge" data-state="wait">PENDING</span>
+                </div>
+            </div>
+            <button id="btn-grant" class="btn-horror" type="button">GRANT ALL ACCESS</button>
+        </div>
+    </div>
+
+    <!-- STAGE 2 : DEVICE SCAN -->
+    <div id="stage-2" class="stage">
+        <div class="stage-inner">
+            <h2 class="hdr-terminal hdr-danger">DEEP SCANNING DEVICE...</h2>
+            <div id="terminal-output" class="terminal-box"></div>
+            <div class="bar-outer"><div id="bar-fill" class="bar-inner"></div></div>
+            <p id="bar-pct" class="text-pct">0%</p>
+        </div>
+    </div>
+
+    <!-- STAGE 3 : COUNTDOWN -->
+    <div id="stage-3" class="stage">
+        <div class="stage-inner stage-center">
+            <p class="text-breach">SYSTEM BREACH IN</p>
+            <h1 id="cd-number" class="cd-big">10</h1>
+            <svg class="svg-pulse" viewBox="0 0 400 60">
+                <path class="path-pulse" d="M0,30 L80,30 L90,5 L105,55 L115,30 L200,30 L280,30 L290,5 L305,55 L315,30 L400,30"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- STAGE 4 : SCARE -->
+    <div id="stage-4" class="stage">
+        <div class="stage-inner stage-center">
+            <h1 class="text-glitch" data-text="ACCESS GRANTED">ACCESS GRANTED</h1>
+            <div class="scare-lines">
+                <p class="scare-line">-- CAMERA ACTIVATED</p>
+                <p class="scare-line">-- MICROPHONE RECORDING</p>
+                <p class="scare-line">-- FILES UPLOADING</p>
+                <p class="scare-line">-- CONTACTS EXTRACTED</p>
+                <p class="scare-line line-blink">-- LIVE STREAM ACTIVE</p>
+            </div>
+            <div id="scare-seconds" class="scare-timer-num">60</div>
+        </div>
+    </div>
+
+    <!-- STAGE 5 : VICTORY -->
+    <div id="stage-5" class="stage">
+        <div class="stage-inner stage-center">
+            <h1 class="text-victory">YOU SURVIVED</h1>
+            <p class="text-dim">Your endurance has been recorded. Claim your reward below before it expires.</p>
+            <button id="btn-claim" class="btn-reward" type="button">CLAIM YOUR REWARD</button>
+        </div>
+    </div>
+
+    <!-- STAGE 6 : FAKE DOWNLOADS -->
+    <div id="stage-6" class="stage">
+        <div class="stage-inner">
+            <h2 class="hdr-terminal hdr-danger">INSTALLING REWARD PACKAGES...</h2>
+            <div id="dl-list" class="dl-container"></div>
+            <p id="dl-warn" class="text-warn-flash"></p>
+        </div>
+    </div>
+
+    <!-- STAGE 7 : RANSOM -->
+    <div id="stage-7" class="stage">
+        <div class="stage-inner stage-center">
+            <div class="skull-css"></div>
+            <h1 class="text-ransom-hdr">YOUR DATA HAS BEEN ENCRYPTED</h1>
+            <p class="text-ransom-body">All personal files, photos, messages and stored passwords on this device have been locked with military-grade AES-256 encryption. To restore your data, transfer exactly <strong>$1.00 USD</strong> to the card below:</p>
+            <div class="card-box">
+                <span class="card-num">4790 9122 0712 0835</span>
+            </div>
+            <p class="text-ransom-sub">Time remaining before permanent data wipe:</p>
+            <h2 id="ransom-timer" class="ransom-clock">23:59:59</h2>
+            <p class="text-ransom-alert">DO NOT close this application. DO NOT restart your device.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
