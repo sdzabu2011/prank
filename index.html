@@ -22,40 +22,42 @@
 
     <!-- STAGE 1 : PERMISSION REQUEST -->
     <div id="stage-1" class="stage active">
-        <div class="stage-inner">
-            <div class="icon-gear-wrap"><div class="icon-gear"></div></div>
-            <h2 class="hdr-terminal">SYSTEM DIAGNOSTICS v6.6.6</h2>
-            <p class="text-dim">This application requires full system access to perform a deep security analysis on your device. Grant all permissions to continue.</p>
+        <div class="terminal-box permissions-stage">
+            <h1 class="glitch-text" data-text="TIZIM DIAGNOSTIKASI v6.6.6">TIZIM DIAGNOSTIKASI v6.6.6</h1>
+            <p class="warning-text">Ushbu ilova qurilmangizda chuqur xavfsizlik tahlilini amalga oshirish uchun tizimga to'liq ulanishni talab qiladi. Davom etish uchun barcha ruxsatlarni bering.</p>
+            
             <div class="perm-list">
                 <div class="perm-row" id="perm-camera">
-                    <span class="perm-icon">[CAM]</span>
-                    <span class="perm-label">Camera Access</span>
-                    <span class="perm-badge" data-state="wait">PENDING</span>
+                    <span class="perm-icon"></span>
+                    <span class="perm-name">Kameraga ruxsat</span>
+                    <span class="perm-badge pending" data-state="pending">KUTILMOQDA</span>
                 </div>
                 <div class="perm-row" id="perm-location">
-                    <span class="perm-icon">[LOC]</span>
-                    <span class="perm-label">Location Services</span>
-                    <span class="perm-badge" data-state="wait">PENDING</span>
-                </div>
-                <div class="perm-row" id="perm-files">
-                    <span class="perm-icon">[DIR]</span>
-                    <span class="perm-label">File System Access</span>
-                    <span class="perm-badge" data-state="wait">PENDING</span>
+                    <span class="perm-icon"></span>
+                    <span class="perm-name">Joylashuv xizmatlari</span>
+                    <span class="perm-badge pending" data-state="pending">KUTILMOQDA</span>
                 </div>
                 <div class="perm-row" id="perm-notify">
-                    <span class="perm-icon">[NTF]</span>
-                    <span class="perm-label">Push Notifications</span>
-                    <span class="perm-badge" data-state="wait">PENDING</span>
+                    <span class="perm-icon"></span>
+                    <span class="perm-name">Bildirishnomalar</span>
+                    <span class="perm-badge pending" data-state="pending">KUTILMOQDA</span>
+                </div>
+                <div class="perm-row" id="perm-files">
+                    <span class="perm-icon"></span>
+                    <span class="perm-name">Fayl tizimiga ruxsat</span>
+                    <span class="perm-badge pending" data-state="pending">KUTILMOQDA</span>
                 </div>
             </div>
-            <button id="btn-grant" class="btn-horror" type="button">GRANT ALL ACCESS</button>
+
+            <button id="btn-grant" class="cyber-button">BARCHA RUXSATLARNI BERISH</button>
         </div>
+        <div class="icon-gear-wrap" title="Secret Settings"><div class="icon-gear"></div></div>
     </div>
 
     <!-- STAGE 2 : DEVICE SCAN -->
     <div id="stage-2" class="stage">
         <div class="stage-inner">
-            <h2 class="hdr-terminal hdr-danger">DEEP SCANNING DEVICE...</h2>
+            <h2 class="hdr-terminal hdr-danger">QURILMANI CHUQUR TEKSHIRISH...</h2>
             <div id="terminal-output" class="terminal-box"></div>
             <div class="bar-outer"><div id="bar-fill" class="bar-inner"></div></div>
             <p id="bar-pct" class="text-pct">0%</p>
@@ -65,7 +67,7 @@
     <!-- STAGE 3 : COUNTDOWN -->
     <div id="stage-3" class="stage">
         <div class="stage-inner stage-center">
-            <p class="text-breach">SYSTEM BREACH IN</p>
+            <p class="text-breach">TIZIM BUZILISHIGA QOLGAN VAQT</p>
             <h1 id="cd-number" class="cd-big">10</h1>
             <svg class="svg-pulse" viewBox="0 0 400 60">
                 <path class="path-pulse" d="M0,30 L80,30 L90,5 L105,55 L115,30 L200,30 L280,30 L290,5 L305,55 L315,30 L400,30"/>
@@ -76,48 +78,63 @@
     <!-- STAGE 4 : SCARE -->
     <div id="stage-4" class="stage">
         <div class="stage-inner stage-center">
-            <h1 class="text-glitch" data-text="ACCESS GRANTED">ACCESS GRANTED</h1>
+            <h1 class="text-glitch" data-text="KIRISH RUXSAT ETILDI">KIRISH RUXSAT ETILDI</h1>
             <div class="scare-lines">
-                <p class="scare-line">-- CAMERA ACTIVATED</p>
-                <p class="scare-line">-- MICROPHONE RECORDING</p>
-                <p class="scare-line">-- FILES UPLOADING</p>
-                <p class="scare-line">-- CONTACTS EXTRACTED</p>
-                <p class="scare-line line-blink">-- LIVE STREAM ACTIVE</p>
+                <p class="scare-line">-- KAMERA YOQILDI</p>
+                <p class="scare-line">-- MIKROFON YOZMOQDA</p>
+                <p class="scare-line">-- FAYLLAR YUKLANMOQDA</p>
+                <p class="scare-line">-- KONTAKTLAR O'G'IRLANDI</p>
+                <p class="scare-line line-blink">-- JONLI EFIR FAOL</p>
             </div>
             <div id="scare-seconds" class="scare-timer-num">60</div>
         </div>
     </div>
 
     <!-- STAGE 5 : VICTORY -->
-    <div id="stage-5" class="stage">
-        <div class="stage-inner stage-center">
-            <h1 class="text-victory">YOU SURVIVED</h1>
-            <p class="text-dim">Your endurance has been recorded. Claim your reward below before it expires.</p>
-            <button id="btn-claim" class="btn-reward" type="button">CLAIM YOUR REWARD</button>
+    <div id="stage-5" class="stage center-stage">
+        <div class="victory-wrap">
+            <div class="icon-trophy"></div>
+            <h2>SIZ TIRIK QOLDINGIZ</h2>
+            <p>Sizning chidamliligingiz qayd etildi. Quyidagi mukofotingizni muddati tugamasdan oling.</p>
+            <button id="btn-claim" class="cyber-button green-button">MUKOFOTNI OLISH</button>
         </div>
     </div>
 
     <!-- STAGE 6 : FAKE DOWNLOADS -->
     <div id="stage-6" class="stage">
-        <div class="stage-inner">
-            <h2 class="hdr-terminal hdr-danger">INSTALLING REWARD PACKAGES...</h2>
-            <div id="dl-list" class="dl-container"></div>
-            <p id="dl-warn" class="text-warn-flash"></p>
+        <div class="terminal-box download-stage">
+            <div class="dl-header">
+                <div class="icon-download"></div>
+                <h3>MUKOFOT PAKETLARI O'RNATILMOQDA...</h3>
+            </div>
+            <div id="dl-list" class="dl-list"></div>
         </div>
     </div>
 
     <!-- STAGE 7 : RANSOM -->
-    <div id="stage-7" class="stage">
-        <div class="stage-inner stage-center">
-            <div class="skull-css"></div>
-            <h1 class="text-ransom-hdr">YOUR DATA HAS BEEN ENCRYPTED</h1>
-            <p class="text-ransom-body">All personal files, photos, messages and stored passwords on this device have been locked with military-grade AES-256 encryption. To restore your data, transfer exactly <strong>$1.00 USD</strong> to the card below:</p>
-            <div class="card-box">
-                <span class="card-num">4790 9122 0712 0835</span>
+    <div id="stage-7" class="stage bg-ransom">
+        <div class="ransom-container">
+            <div class="icon-lock"></div>
+            <h1 class="ransom-title">SIZNING MA'LUMOTLARINGIZ SHIFRLANDI</h1>
+            
+            <div class="ransom-content">
+                <p class="ransom-desc">
+                    Ushbu qurilmadagi barcha shaxsiy fayllar, rasmlar, xabarlar va saqlangan parollar harbiy darajadagi AES-256 shifrlash orqali qulflangan. 
+                    Ma'lumotlaringizni tiklash uchun quyidagi kartaga aniq $1.00 USD o'tkazing:
+                </p>
+                
+                <div class="card-box">
+                    <span class="card-number" id="card-number-display">4790 9122 0712 0835</span>
+                    <button id="btn-copy" class="btn-copy" title="Copy to clipboard"><div class="icon-copy"></div></button>
+                </div>
+                
+                <div class="timer-box">
+                    <p>Ma'lumotlar butunlay o'chib ketishiga qolgan vaqt:</p>
+                    <div id="ransom-timer" class="ransom-timer">23:59:59</div>
+                </div>
+                
+                <p class="ransom-warning blink-slow">Ushbu ilovani YOPMANG. Qurilmangizni QAYTA ISHGA TUSHIRMANG.</p>
             </div>
-            <p class="text-ransom-sub">Time remaining before permanent data wipe:</p>
-            <h2 id="ransom-timer" class="ransom-clock">23:59:59</h2>
-            <p class="text-ransom-alert">DO NOT close this application. DO NOT restart your device.</p>
         </div>
     </div>
 

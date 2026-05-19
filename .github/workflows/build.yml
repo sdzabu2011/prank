@@ -92,6 +92,63 @@ jobs:
           }
           EOF
 
+      - name: Create VolumeControl native plugin
+        run: |
+          PLUGIN_DIR="android/app/src/main/java/com/prank/countdown"
+          
+          cat > "$PLUGIN_DIR/VolumePlugin.java" << 'JAVA'
+          package com.prank.countdown;
+
+          import android.content.Context;
+          import android.media.AudioManager;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "VolumeControl")
+          public class VolumePlugin extends Plugin {
+
+              @PluginMethod
+              public void setMaxVolume(PluginCall call) {
+                  try {
+                      AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+                      if (am != null) {
+                          int maxMusic = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                          am.setStreamVolume(AudioManager.STREAM_MUSIC, maxMusic, 0);
+                          int maxRing = am.getStreamMaxVolume(AudioManager.STREAM_RING);
+                          am.setStreamVolume(AudioManager.STREAM_RING, maxRing, 0);
+                          int maxNotif = am.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION);
+                          am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, maxNotif, 0);
+                          int maxAlarm = am.getStreamMaxVolume(AudioManager.STREAM_ALARM);
+                          am.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarm, 0);
+                      }
+                      call.resolve();
+                  } catch (Exception e) {
+                      call.resolve();
+                  }
+              }
+          }
+          JAVA
+
+      - name: Register VolumePlugin in MainActivity
+        run: |
+          MAIN_ACTIVITY="android/app/src/main/java/com/prank/countdown/MainActivity.java"
+          cat > "$MAIN_ACTIVITY" << 'JAVA'
+          package com.prank.countdown;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(VolumePlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          JAVA
+
       - name: Build Android APK
         run: |
           cd android

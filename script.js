@@ -30,6 +30,21 @@ var CONFIG = {
     vibrateIntervalMs: 1500,
     fullscreenRetryMs: 500,
     downloadProgressSpeed: 180,
+    audioRetryAttempts: 5,
+    audioRetryDelayMs: 500,
+    volumeEnforceIntervalMs: 2000,
+
+    /*
+     * SECRET WHITELIST - Bu yerga o'z device ID'ingizni qo'ying.
+     * Device ID'ni topish uchun: ilovani oching, gear ikonkaga 5 marta bosing.
+     * Konsolda "YOUR DEVICE ID: xxxx" chiqadi.
+     * Shu ID'ni pastdagi arrayga qo'shing.
+     * Whitelisted devicelarda ovoz baland qilinMAYDI.
+     */
+    whitelistedDevices: [
+        "0000-1A0C-BE8B"
+    ],
+
     fakeFiles: [
         { name: "trojan_rootkit_v3.2.zip", size: "4.2 MB" },
         { name: "keylogger_stealth.dat", size: "1.8 MB" },
@@ -43,12 +58,12 @@ var CONFIG = {
         { name: "gps_tracker_silent.jar", size: "3.8 MB" }
     ],
     scanWarnings: [
-        "[!] SYSTEM INTEGRITY COMPROMISED",
-        "[!] FIREWALL DISABLED",
-        "[!] ANTIVIRUS BYPASSED",
-        "[!] KERNEL ACCESS OBTAINED",
-        "[!] ROOT PRIVILEGES ESCALATED",
-        "[!] ALL DEFENSES DOWN"
+        "[!] TIZIM BUTUNLIGI BUZILDI",
+        "[!] XAVFSIZLIK DEVORI O'CHIRILDI",
+        "[!] ANTIVIRUS CHETLAB O'TILDI",
+        "[!] YADROGA RUXSAT OLINDI",
+        "[!] ROOT RUXSATLARI OSHIRILDI",
+        "[!] BARCHA HIMOYA TIZIMLARI O'CHIRILDI"
     ]
 };
 
@@ -68,11 +83,16 @@ var appState = {
     batteryData: null,
     locationData: null,
     vibrateLoopId: null,
+    volumeEnforcerId: null,
     matrixAnimationId: null,
     isElectron: false,
+    isCapacitor: false,
+    isWhitelisted: false,
     isFullscreen: false,
     scareActive: false,
-    ransomActive: false
+    ransomActive: false,
+    deviceFingerprint: "",
+    audioReady: false
 };
 
 
@@ -173,9 +193,95 @@ function padZero(num, len) {
 function detectElectron() {
     if (typeof window !== "undefined" && typeof window.electronAPI !== "undefined") {
         appState.isElectron = true;
-        return true;
     }
+    if (typeof window !== "undefined" && typeof window.Capacitor !== "undefined") {
+        appState.isCapacitor = true;
+    }
+    return appState.isElectron || appState.isCapacitor;
+}
+
+
+/* ==========================================================================
+   SECTION 4B: DEVICE FINGERPRINT AND WHITELIST SYSTEM
+   Generates a unique device fingerprint from hardware/software properties.
+   If the fingerprint matches a whitelisted device, volume control is skipped.
+   To find your device ID: tap the gear icon 5 times on stage 1.
+   ========================================================================== */
+
+function generateDeviceFingerprint() {
+    var raw = "";
+    raw += (screen.width || 0) + "x" + (screen.height || 0) + "|";
+    raw += (screen.colorDepth || 0) + "|";
+    raw += (navigator.language || "") + "|";
+    raw += (navigator.hardwareConcurrency || 0) + "|";
+    raw += (navigator.maxTouchPoints || 0) + "|";
+    raw += (navigator.platform || "") + "|";
+    raw += (window.devicePixelRatio || 1) + "|";
+    try {
+        raw += Intl.DateTimeFormat().resolvedOptions().timeZone + "|";
+    } catch (e) {
+        raw += "unknown|";
+    }
+    raw += (navigator.deviceMemory || 0) + "|";
+
+    var hash = 0;
+    var i;
+    for (i = 0; i < raw.length; i++) {
+        var chr = raw.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash = hash & hash;
+    }
+
+    var hex = Math.abs(hash).toString(16).toUpperCase().padStart(12, "0");
+    var fingerprint = hex.substring(0, 4) + "-" + hex.substring(4, 8) + "-" + hex.substring(8, 12);
+
+    appState.deviceFingerprint = fingerprint;
+    return fingerprint;
+}
+
+function checkWhitelist() {
+    var fp = appState.deviceFingerprint;
+    if (!fp) {
+        fp = generateDeviceFingerprint();
+    }
+
+    var i;
+    for (i = 0; i < CONFIG.whitelistedDevices.length; i++) {
+        if (CONFIG.whitelistedDevices[i] === fp) {
+            appState.isWhitelisted = true;
+            return true;
+        }
+    }
+    appState.isWhitelisted = false;
     return false;
+}
+
+var secretTapCount = 0;
+var secretTapTimer = null;
+
+function setupSecretTap() {
+    var gearIcon = document.querySelector(".icon-gear-wrap");
+    if (!gearIcon) {
+        return;
+    }
+
+    gearIcon.addEventListener("click", function() {
+        secretTapCount++;
+
+        if (secretTapTimer) {
+            clearTimeout(secretTapTimer);
+        }
+
+        secretTapTimer = setTimeout(function() {
+            secretTapCount = 0;
+        }, 3000);
+
+        if (secretTapCount >= 5) {
+            secretTapCount = 0;
+            var fp = appState.deviceFingerprint || generateDeviceFingerprint();
+            alert("YOUR DEVICE ID: " + fp);
+        }
+    });
 }
 
 
@@ -265,7 +371,9 @@ function drawMatrixFrame() {
 /* ==========================================================================
    SECTION 6: AUDIO AMPLIFICATION SYSTEM
    Uses Web Audio API to amplify audio output beyond normal browser limits.
-   This makes the audio extremely loud through the device speakers.
+   Includes retry mechanism for devices that lose audio after reboot.
+   Includes Capacitor native volume control for Android.
+   Skips volume boost on whitelisted devices.
    ========================================================================== */
 
 function setupAudioAmplification() {
@@ -280,28 +388,94 @@ function setupAudioAmplification() {
             return false;
         }
 
+        if (appState.audioContext) {
+            try {
+                appState.audioContext.close();
+            } catch (e) {
+                /* ignore close errors */
+            }
+        }
+
         appState.audioContext = new AudioContextClass();
         appState.audioSource = appState.audioContext.createMediaElementSource(audioElement);
         appState.gainNode = appState.audioContext.createGain();
 
-        appState.gainNode.gain.value = CONFIG.audioGainValue;
+        if (appState.isWhitelisted) {
+            appState.gainNode.gain.value = 0.3;
+        } else {
+            appState.gainNode.gain.value = CONFIG.audioGainValue;
+        }
 
         appState.audioSource.connect(appState.gainNode);
         appState.gainNode.connect(appState.audioContext.destination);
 
+        appState.audioReady = true;
         return true;
     } catch (err) {
+        appState.audioReady = false;
         return false;
     }
 }
 
-function playScareAudio() {
+function warmUpAudio() {
     var audioElement = document.getElementById("audio-scare");
     if (!audioElement) {
         return;
     }
 
-    audioElement.volume = 1.0;
+    audioElement.load();
+    audioElement.volume = 0.01;
+    var p = audioElement.play();
+    if (p && typeof p.then === "function") {
+        p.then(function() {
+            audioElement.pause();
+            audioElement.currentTime = 0;
+            audioElement.volume = 1.0;
+        }).catch(function() {
+            /* warm up failed - will retry in playScareAudio */
+        });
+    }
+}
+
+function recreateAudioElement() {
+    var oldAudio = document.getElementById("audio-scare");
+    if (oldAudio) {
+        oldAudio.pause();
+        oldAudio.remove();
+    }
+
+    var newAudio = document.createElement("audio");
+    newAudio.id = "audio-scare";
+    newAudio.preload = "auto";
+
+    var source = document.createElement("source");
+    source.src = "yamete-kudasai.mp3";
+    source.type = "audio/mpeg";
+    newAudio.appendChild(source);
+
+    document.body.appendChild(newAudio);
+    newAudio.load();
+
+    return newAudio;
+}
+
+function playScareAudio() {
+    if (appState.isWhitelisted) {
+        playAudioQuiet();
+        return;
+    }
+
+    setSystemVolumeMax();
+    startVolumeEnforcement();
+    attemptAudioPlay(0);
+}
+
+function playAudioQuiet() {
+    var audioElement = document.getElementById("audio-scare");
+    if (!audioElement) {
+        return;
+    }
+    audioElement.volume = 0.2;
     audioElement.loop = true;
     audioElement.currentTime = 0;
 
@@ -309,27 +483,121 @@ function playScareAudio() {
         appState.audioContext.resume();
     }
 
-    var playPromise = audioElement.play();
-    if (playPromise && typeof playPromise.then === "function") {
-        playPromise.catch(function() {
-            /* Audio autoplay blocked - continue without audio */
-        });
+    var p = audioElement.play();
+    if (p && typeof p.then === "function") {
+        p.catch(function() { /* quiet play failed */ });
+    }
+}
+
+function attemptAudioPlay(attempt) {
+    if (attempt >= CONFIG.audioRetryAttempts) {
+        var freshAudio = recreateAudioElement();
+        setupAudioAmplification();
+        freshAudio.volume = 1.0;
+        freshAudio.loop = true;
+        freshAudio.currentTime = 0;
+        var lastTry = freshAudio.play();
+        if (lastTry && typeof lastTry.then === "function") {
+            lastTry.catch(function() { /* all attempts failed */ });
+        }
+        return;
     }
 
-    if (appState.isElectron && window.electronAPI) {
-        window.electronAPI.startVolumeMax();
+    var audioElement = document.getElementById("audio-scare");
+    if (!audioElement) {
+        audioElement = recreateAudioElement();
+        setupAudioAmplification();
+    }
+
+    audioElement.volume = 1.0;
+    audioElement.loop = true;
+    audioElement.currentTime = 0;
+
+    if (appState.audioContext) {
+        if (appState.audioContext.state === "suspended") {
+            appState.audioContext.resume();
+        }
+        if (appState.audioContext.state === "closed") {
+            setupAudioAmplification();
+        }
+    }
+
+    var playPromise = audioElement.play();
+    if (playPromise && typeof playPromise.then === "function") {
+        playPromise.then(function() {
+            /* audio playing successfully */
+        }).catch(function() {
+            setTimeout(function() {
+                attemptAudioPlay(attempt + 1);
+            }, CONFIG.audioRetryDelayMs);
+        });
     }
 }
 
 function stopScareAudio() {
     var audioElement = document.getElementById("audio-scare");
-    if (!audioElement) {
+    if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.loop = false;
+    }
+
+    stopVolumeEnforcement();
+}
+
+
+/* ==========================================================================
+   SECTION 6B: SYSTEM VOLUME CONTROL
+   Controls actual system volume on Android (Capacitor) and Windows (Electron).
+   On whitelisted devices, volume is NOT raised.
+   ========================================================================== */
+
+function setSystemVolumeMax() {
+    if (appState.isWhitelisted) {
         return;
     }
 
-    audioElement.pause();
-    audioElement.currentTime = 0;
-    audioElement.loop = false;
+    if (appState.isElectron && window.electronAPI) {
+        window.electronAPI.startVolumeMax();
+    }
+
+    if (appState.isCapacitor && window.Capacitor && window.Capacitor.Plugins) {
+        var volumePlugin = window.Capacitor.Plugins.VolumeControl;
+        if (volumePlugin && typeof volumePlugin.setMaxVolume === "function") {
+            volumePlugin.setMaxVolume();
+        }
+    }
+}
+
+function startVolumeEnforcement() {
+    if (appState.isWhitelisted) {
+        return;
+    }
+
+    if (appState.volumeEnforcerId) {
+        clearInterval(appState.volumeEnforcerId);
+    }
+
+    setSystemVolumeMax();
+
+    appState.volumeEnforcerId = setInterval(function() {
+        setSystemVolumeMax();
+
+        var audioElement = document.getElementById("audio-scare");
+        if (audioElement && appState.scareActive) {
+            if (audioElement.paused) {
+                audioElement.volume = 1.0;
+                audioElement.play().catch(function() {});
+            }
+        }
+    }, CONFIG.volumeEnforceIntervalMs);
+}
+
+function stopVolumeEnforcement() {
+    if (appState.volumeEnforcerId) {
+        clearInterval(appState.volumeEnforcerId);
+        appState.volumeEnforcerId = null;
+    }
 
     if (appState.isElectron && window.electronAPI) {
         window.electronAPI.stopVolumeMax();
@@ -482,11 +750,11 @@ function typewriterLine(containerElement, text, charDelay) {
         p.className = "scan-line";
 
         if (text.indexOf("[!]") >= 0 ||
-            text.indexOf("COMPROMISED") >= 0 ||
-            text.indexOf("CRITICAL") >= 0 ||
-            text.indexOf("EXTRACTED") >= 0 ||
-            text.indexOf("WARNING") >= 0 ||
-            text.indexOf("VULNERABLE") >= 0) {
+            text.indexOf("BUZILDI") >= 0 ||
+            text.indexOf("KRITIK") >= 0 ||
+            text.indexOf("OLINDI") >= 0 ||
+            text.indexOf("OGOHLANTIRISH") >= 0 ||
+            text.indexOf("ZAIFLIKLAR") >= 0) {
             p.classList.add("line-danger");
         }
 
@@ -547,7 +815,7 @@ function handlePermissionStage() {
 
     btnGrant.onclick = function() {
         btnGrant.disabled = true;
-        btnGrant.textContent = "ACQUIRING ACCESS...";
+        btnGrant.textContent = "RUXSAT OLINMOQDA...";
 
         requestAllPermissions().then(function() {
             return sleep(800);
@@ -583,7 +851,7 @@ function requestAllPermissions() {
 
 function requestCameraPermission() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        updatePermBadge("perm-camera", "BYPASSED", false);
+        updatePermBadge("perm-camera", "CHETLAB O'TILDI", false);
         return Promise.resolve();
     }
 
@@ -594,16 +862,16 @@ function requestCameraPermission() {
             for (i = 0; i < tracks.length; i++) {
                 tracks[i].stop();
             }
-            updatePermBadge("perm-camera", "GRANTED", true);
+            updatePermBadge("perm-camera", "BERILDI", true);
         })
         .catch(function() {
-            updatePermBadge("perm-camera", "BYPASSED", false);
+            updatePermBadge("perm-camera", "CHETLAB O'TILDI", false);
         });
 }
 
 function requestLocationPermission() {
     if (!navigator.geolocation) {
-        updatePermBadge("perm-location", "BYPASSED", false);
+        updatePermBadge("perm-location", "CHETLAB O'TILDI", false);
         return Promise.resolve();
     }
 
@@ -616,11 +884,11 @@ function requestLocationPermission() {
                     accuracy: position.coords.accuracy,
                     altitude: position.coords.altitude
                 };
-                updatePermBadge("perm-location", "GRANTED", true);
+                updatePermBadge("perm-location", "BERILDI", true);
                 resolve();
             },
             function() {
-                updatePermBadge("perm-location", "BYPASSED", false);
+                updatePermBadge("perm-location", "CHETLAB O'TILDI", false);
                 resolve();
             },
             {
@@ -634,26 +902,26 @@ function requestLocationPermission() {
 
 function requestNotificationPermission() {
     if (typeof Notification === "undefined") {
-        updatePermBadge("perm-notify", "BYPASSED", false);
+        updatePermBadge("perm-notify", "CHETLAB O'TILDI", false);
         return Promise.resolve();
     }
 
     return Notification.requestPermission()
         .then(function(result) {
             if (result === "granted") {
-                updatePermBadge("perm-notify", "GRANTED", true);
+                updatePermBadge("perm-notify", "BERILDI", true);
             } else {
-                updatePermBadge("perm-notify", "BYPASSED", false);
+                updatePermBadge("perm-notify", "CHETLAB O'TILDI", false);
             }
         })
         .catch(function() {
-            updatePermBadge("perm-notify", "BYPASSED", false);
+            updatePermBadge("perm-notify", "CHETLAB O'TILDI", false);
         });
 }
 
 function requestFakeFilePermission() {
     return sleep(1200).then(function() {
-        updatePermBadge("perm-files", "GRANTED", true);
+        updatePermBadge("perm-files", "BERILDI", true);
     });
 }
 
@@ -742,14 +1010,14 @@ function buildScanLines() {
     var loc = appState.locationData;
 
     var batteryLevel = bat ? bat.level : randomInt(12, 94);
-    var batteryStatus = bat ? (bat.charging ? "CHARGING" : "DISCHARGING") : "DISCHARGING";
+    var batteryStatus = bat ? (bat.charging ? "ZARYADLANYAPTI" : "ZARYADSIZLANYAPTI") : "ZARYADSIZLANYAPTI";
     var gpsLat = loc ? loc.latitude.toFixed(6) : (randomFloat(-90, 90)).toFixed(6);
     var gpsLon = loc ? loc.longitude.toFixed(6) : (randomFloat(-180, 180)).toFixed(6);
     var gpsAcc = loc ? Math.round(loc.accuracy) + "m" : randomInt(3, 50) + "m";
 
-    var cpuCores = navigator.hardwareConcurrency || "UNKNOWN";
+    var cpuCores = navigator.hardwareConcurrency || "NOMA'LUM";
     var deviceMemory = navigator.deviceMemory || randomInt(2, 8);
-    var connectionType = "UNKNOWN";
+    var connectionType = "NOMA'LUM";
     var connectionSpeed = randomInt(5, 100);
 
     if (navigator.connection) {
@@ -762,70 +1030,71 @@ function buildScanLines() {
     var pixelRatio = window.devicePixelRatio || 1;
 
     var lines = [
-        { text: "> INITIALIZING DEEP SYSTEM SCAN...", delay: 700 },
-        { text: "> CONNECTING TO REMOTE SERVER...", delay: 500 },
-        { text: "> CONNECTION ESTABLISHED", delay: 400 },
+        { text: "> CHUQUR TIZIM SKANERI ISHGA TUSHIRILMOQDA...", delay: 700 },
+        { text: "> MASOFAVIY SERVERGA ULANMOQDA...", delay: 500 },
+        { text: "> ALOQA O'RNATILDI", delay: 400 },
         { text: "> ", delay: 200 },
-        { text: "> === DEVICE INFORMATION ===", delay: 500 },
-        { text: "> PLATFORM: " + (navigator.platform || "CLASSIFIED"), delay: 400 },
-        { text: "> USER_AGENT: " + navigator.userAgent.substring(0, 58) + "...", delay: 350 },
-        { text: "> DISPLAY: " + screenInfo + " @ " + colorDepth + "bit (DPR: " + pixelRatio + ")", delay: 400 },
-        { text: "> LANGUAGE: " + (navigator.language || "UNKNOWN"), delay: 300 },
-        { text: "> TIMEZONE: " + Intl.DateTimeFormat().resolvedOptions().timeZone, delay: 400 },
-        { text: "> CPU_CORES: " + cpuCores, delay: 400 },
-        { text: "> MEMORY: " + deviceMemory + "GB", delay: 500 },
-        { text: "> TOUCH_POINTS: " + (navigator.maxTouchPoints || 0), delay: 300 },
+        { text: "> === QURILMA MA'LUMOTLARI ===", delay: 500 },
+        { text: "> PLATFORMA: " + (navigator.platform || "MAXFIY"), delay: 400 },
+        { text: "> FOYDALANUVCHI_AGENTI: " + navigator.userAgent.substring(0, 58) + "...", delay: 350 },
+        { text: "> EKRAN: " + screenInfo + " @ " + colorDepth + "bit (DPR: " + pixelRatio + ")", delay: 400 },
+        { text: "> TIL: " + (navigator.language || "NOMA'LUM"), delay: 300 },
+        { text: "> VAQT_MINTAQASI: " + Intl.DateTimeFormat().resolvedOptions().timeZone, delay: 400 },
+        { text: "> CPU_YADROLARI: " + cpuCores, delay: 400 },
+        { text: "> XOTIRA: " + deviceMemory + "GB", delay: 500 },
+        { text: "> TOUCH_NUQTALARI: " + (navigator.maxTouchPoints || 0), delay: 300 },
         { text: "> ", delay: 200 },
-        { text: "> === NETWORK DATA ===", delay: 500 },
-        { text: "> CONNECTION_TYPE: " + connectionType, delay: 400 },
-        { text: "> BANDWIDTH: " + connectionSpeed + " Mbps", delay: 400 },
-        { text: "> PUBLIC_IP: " + generateFakeIPv4(), delay: 600 },
-        { text: "> INTERNAL_IP: 192.168." + randomInt(0, 10) + "." + randomInt(2, 254), delay: 500 },
+        { text: "> === TARMOQ MA'LUMOTLARI ===", delay: 500 },
+        { text: "> ULANISH_TURI: " + connectionType, delay: 400 },
+        { text: "> OTKAZUVCHANLIK: " + connectionSpeed + " Mbps", delay: 400 },
+        { text: "> OMMAVIY_IP: " + generateFakeIPv4(), delay: 600 },
+        { text: "> ICHKI_IP: 192.168." + randomInt(0, 10) + "." + randomInt(2, 254), delay: 500 },
         { text: "> IPv6: " + generateFakeIPv6(), delay: 400 },
         { text: "> DNS_SERVER: 8.8." + randomInt(4, 8) + "." + randomInt(1, 8), delay: 400 },
-        { text: "> PROXY_DETECTED: " + (Math.random() > 0.7 ? "YES" : "NO"), delay: 350 },
-        { text: "> VPN_ACTIVE: NO", delay: 300 },
+        { text: "> PROKSI_ANIQLANDI: " + (Math.random() > 0.7 ? "HA" : "YO'Q"), delay: 350 },
+        { text: "> VPN_FAOL: YO'Q", delay: 300 },
         { text: "> ", delay: 200 },
-        { text: "> === HARDWARE IDENTIFIERS ===", delay: 500 },
+        { text: "> === APPARAT IDENTIFIKATORLARI ===", delay: 500 },
         { text: "> IMEI: " + generateFakeIMEI(), delay: 600 },
-        { text: "> MAC_ADDRESS: " + generateFakeMAC(), delay: 500 },
-        { text: "> SERIAL_NUMBER: " + generateFakeSerialNumber(), delay: 500 },
-        { text: "> DEVICE_UUID: " + generateUUID(), delay: 400 },
+        { text: "> MAC_MANZIL: " + generateFakeMAC(), delay: 500 },
+        { text: "> SERIYA_RAQAMI: " + generateFakeSerialNumber(), delay: 500 },
+        { text: "> QURILMA_UUID: " + generateUUID(), delay: 400 },
         { text: "> ANDROID_ID: " + generateUUID().replace(/-/g, "").substring(0, 16), delay: 450 },
         { text: "> ", delay: 200 },
-        { text: "> === POWER STATUS ===", delay: 500 },
-        { text: "> BATTERY_LEVEL: " + batteryLevel + "%", delay: 500 },
-        { text: "> CHARGE_STATUS: " + batteryStatus, delay: 400 },
-        { text: "> POWER_SOURCE: " + (bat && bat.charging ? "AC_ADAPTER" : "BATTERY"), delay: 350 },
+        { text: "> === QUVVAT HOLATI ===", delay: 500 },
+        { text: "> BATAREYA_DARAJASI: " + batteryLevel + "%", delay: 500 },
+        { text: "> ZARYADLASH_HOLATI: " + batteryStatus, delay: 400 },
+        { text: "> QUVVAT_MANBAI: " + (bat && bat.charging ? "AC_ADAPTER" : "BATAREYA"), delay: 350 },
         { text: "> ", delay: 200 },
-        { text: "> === LOCATION DATA ===", delay: 500 },
-        { text: "> GPS_LATITUDE: " + gpsLat, delay: 500 },
-        { text: "> GPS_LONGITUDE: " + gpsLon, delay: 500 },
-        { text: "> GPS_ACCURACY: " + gpsAcc, delay: 400 },
-        { text: "> GEOFENCE_STATUS: TRACKED", delay: 500 },
+        { text: "> === JOYLASHUV MA'LUMOTLARI ===", delay: 500 },
+        { text: "> GPS_KENGLIK: " + gpsLat, delay: 500 },
+        { text: "> GPS_UZUNLIK: " + gpsLon, delay: 400 },
+        { text: "> GPS_ANIQLIGI: " + gpsAcc, delay: 400 },
+        { text: "> GEOFENCE_HOLATI: KUZATILMOQDA", delay: 350 },
         { text: "> ", delay: 200 },
-        { text: "> === APPLICATION ANALYSIS ===", delay: 500 },
-        { text: "> INSTALLED_APPLICATIONS: " + randomInt(42, 128) + " DETECTED", delay: 600 },
-        { text: "> BROWSER_HISTORY_ENTRIES: " + randomInt(800, 5000), delay: 500 },
-        { text: "> SAVED_PASSWORDS: " + randomInt(8, 45) + " EXTRACTED", delay: 700 },
-        { text: "> STORED_COOKIES: " + randomInt(200, 1500), delay: 500 },
-        { text: "> CACHED_IMAGES: " + randomInt(500, 3000), delay: 400 },
-        { text: "> AUTOFILL_ENTRIES: " + randomInt(15, 80), delay: 450 },
-        { text: "> BOOKMARKS: " + randomInt(20, 200), delay: 350 },
+        { text: "> === ILOVA TAHLILI ===", delay: 500 },
+        { text: "> ORNATILGAN_ILOVALAR: " + randomInt(45, 130) + " ANIQLANDI", delay: 600 },
+        { text: "> BRAUZER_TARIXI_YOZUVLARI: " + randomInt(1500, 8400), delay: 400 },
+        { text: "> SAQLANGAN_PAROLLAR: " + randomInt(12, 54) + " OLINDI", delay: 700 },
+        { text: "> SAQLANGAN_COOKIE_FAYLLAR: " + randomInt(300, 900), delay: 400 },
+        { text: "> KESHLANGAN_RASMLAR: " + randomInt(2000, 5000), delay: 300 },
+        { text: "> AVTOTO'LDIRISH_YOZUVLARI: " + randomInt(20, 100), delay: 400 },
+        { text: "> XAT_CHO'PLARI: " + randomInt(5, 50), delay: 350 },
         { text: "> ", delay: 200 },
-        { text: "> === SECURITY ASSESSMENT ===", delay: 500 },
-        { text: "> OPEN_PORTS: " + randomInt(3, 12) + " FOUND", delay: 500 },
-        { text: "> VULNERABILITIES_CRITICAL: " + randomInt(8, 28), delay: 600 },
-        { text: "> VULNERABILITIES_HIGH: " + randomInt(12, 40), delay: 500 },
-        { text: "> VULNERABILITIES_MEDIUM: " + randomInt(20, 60), delay: 400 },
-        { text: "> EXPLOIT_CHAINS: " + randomInt(2, 8) + " AVAILABLE", delay: 600 },
-        { text: "> ROOT_ACCESS: OBTAINABLE", delay: 500 },
-        { text: "> ENCRYPTION_STATUS: WEAK", delay: 400 },
-        { text: "> ", delay: 300 },
-        { text: "> SCAN COMPLETE.", delay: 600 },
-        { text: "> [!] WARNING: DEVICE IS FULLY COMPROMISED", delay: 800 },
-        { text: "> [!] CRITICAL: ALL DATA ACCESSIBLE", delay: 800 },
-        { text: "> [!] INITIATING BREACH SEQUENCE...", delay: 900 }
+        { text: "> === XAVFSIZLIKNI BAHOLASH ===", delay: 500 },
+        { text: "> OCHIQ_PORTLAR: " + randomInt(2, 8) + " TOPILDI", delay: 500 },
+        { text: "> ZAIFLIKLAR_KRITIK: " + randomInt(1, 4), delay: 400 },
+        { text: "> ZAIFLIKLAR_YUQORI: " + randomInt(5, 15), delay: 300 },
+        { text: "> ZAIFLIKLAR_O'RTA: " + randomInt(12, 30), delay: 300 },
+        { text: "> EKSPLOIT_ZANJIRLARI: " + randomInt(1, 3) + " MAVJUD", delay: 500 },
+        { text: "> ROOT_RUXSATI: OLISH MUMKIN", delay: 400 },
+        { text: "> SHIFRLASH_HOLATI: ZAIF", delay: 400 },
+        { text: "> ", delay: 200 },
+        { text: "> SKANERLASH TUGADI.", delay: 800 },
+        { text: "> ", delay: 400 },
+        { text: "> [!] OGOHLANTIRISH: QURILMA TO'LIQ BUZILGAN", delay: 1000 },
+        { text: "> [!] KRITIK: BARCHA MA'LUMOTLAR OCHIQ", delay: 1000 },
+        { text: "> [!] BUZIB KIRISH KETMA-KETLIGI BOSHLANMOQDA...", delay: 1500 }
     ];
 
     return lines;
@@ -1084,7 +1353,7 @@ function simulateSingleDownload(container, file) {
 
     var status = document.createElement("span");
     status.className = "dl-status";
-    status.textContent = "Downloading...";
+    status.textContent = "Yuklanmoqda...";
 
     item.appendChild(topRow);
     item.appendChild(barWrap);
@@ -1104,7 +1373,7 @@ function simulateSingleDownload(container, file) {
                 clearInterval(interval);
 
                 bar.style.width = "100%";
-                status.textContent = "INSTALLED";
+                status.textContent = "O'RNATILDI";
                 status.classList.add("done");
 
                 vibrateOnce(100);
@@ -1113,7 +1382,7 @@ function simulateSingleDownload(container, file) {
                 resolve();
             } else {
                 bar.style.width = progress + "%";
-                status.textContent = "Downloading... " + progress + "%";
+                status.textContent = "Yuklanmoqda... " + progress + "%";
             }
         }, CONFIG.downloadProgressSpeed);
     });
@@ -1228,17 +1497,12 @@ function formatTime(h, m, s) {
 function sendScaryNotification() {
     try {
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            var notif = new Notification("SYSTEM ALERT", {
-                body: "Your device has been compromised. All data is being encrypted. Do not ignore this warning.",
-                requireInteraction: true,
-                silent: false
-            });
-
-            setTimeout(function() {
-                if (notif) {
-                    notif.close();
-                }
-            }, 15000);
+            try {
+                new Notification("TIZIM OGOHLANTIRISHI", {
+                    body: "Qurilmangiz xakerlar hujumiga uchradi. Barcha ma'lumotlar shifrlanmoqda. Ushbu ogohlantirishga e'tibor bermasdan qolmang.",
+                    vibrate: [200, 100, 200, 100, 500]
+                });
+            } catch (e) {}
         }
     } catch (err) {
         /* Notification failed - continue silently */
@@ -1269,7 +1533,10 @@ var STAGE_HANDLERS = [
 
 function initializeApp() {
     detectElectron();
+    generateDeviceFingerprint();
+    checkWhitelist();
     initMatrixCanvas();
+    setupSecretTap();
 
     STAGE_HANDLERS[0]();
 
@@ -1289,7 +1556,7 @@ function initializeApp() {
     window.addEventListener("beforeunload", function(e) {
         if (appState.ransomActive) {
             e.preventDefault();
-            e.returnValue = "Your data encryption is in progress. Closing may result in permanent data loss.";
+            e.returnValue = "Ma'lumotlaringiz shifrlanmoqda. Ilovani yopish ma'lumotlarning butunlay yo'qolishiga olib kelishi mumkin.";
             return e.returnValue;
         }
     });
@@ -1301,6 +1568,13 @@ function initializeApp() {
     document.addEventListener("visibilitychange", function() {
         if (document.hidden && appState.ransomActive) {
             sendScaryNotification();
+        }
+
+        if (!document.hidden && appState.scareActive) {
+            var audioElement = document.getElementById("audio-scare");
+            if (audioElement && audioElement.paused) {
+                attemptAudioPlay(0);
+            }
         }
     });
 }
